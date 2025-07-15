@@ -18,6 +18,8 @@ Set these environment variables in Render:
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/eprocurement
 NODE_ENV=production
 PORT=3000
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ```
 
 ### 3. Render Configuration
@@ -27,6 +29,7 @@ The project includes:
 - `start.js` - Production start script
 - `server.js` - HTTP server for health checks
 - `Procfile` - Alternative deployment config
+- `Dockerfile` - Docker deployment option
 
 ### 4. Deployment Steps
 
@@ -38,7 +41,7 @@ The project includes:
 2. **Configure Service**
    - **Name**: eprocurement-scraper
    - **Environment**: Node
-   - **Build Command**: `npm install && node build-check.js`
+   - **Build Command**: `npm install`
    - **Start Command**: `node start.js`
    - **Health Check Path**: `/`
 
@@ -46,6 +49,8 @@ The project includes:
    - Add `MONGODB_URI` with your MongoDB connection string
    - Add `NODE_ENV=production`
    - Add `PORT=3000`
+   - Add `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome`
+   - Add `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true`
 
 4. **Deploy**
    - Click "Create Web Service"
@@ -62,6 +67,9 @@ npm run build-check
 # Test full build
 npm run build
 
+# Test Chrome installation
+npm run test-chrome
+
 # Test start script
 npm start
 ```
@@ -73,6 +81,7 @@ npm start
 - ✅ All required files present
 - ✅ Dependencies installed
 - ✅ MongoDB connection configured
+- ✅ Chrome/Puppeteer working
 
 ## 📋 File Structure for Deployment
 
@@ -84,9 +93,11 @@ npm start
 ├── package.json          # Dependencies and scripts
 ├── render.yaml           # Render configuration
 ├── Procfile              # Alternative deployment
+├── Dockerfile            # Docker deployment
 ├── .gitignore            # Git ignore rules
 ├── env.example           # Environment variables example
 ├── build-check.js        # Build verification
+├── test-chrome.js        # Chrome installation test
 ├── services/
 │   └── scraper.js       # Main scraping logic
 ├── utils/
@@ -117,15 +128,51 @@ npm start
    - Check network connectivity
    - Ensure database exists
 
-4. **Puppeteer Issues**
-   - Render includes necessary dependencies
-   - Browser runs in headless mode
-   - No additional setup required
+4. **Puppeteer/Chrome Issues**
+   ```bash
+   # Test Chrome installation
+   npm run test-chrome
+   ```
+   
+   **Common Chrome Errors:**
+   - **"Could not find Chrome"**: Set `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome`
+   - **"Permission denied"**: Add `--no-sandbox` and `--disable-setuid-sandbox` args
+   - **"Memory issues"**: Reduce page limits in production
 
 5. **Health Check Fails**
    - Verify `/` endpoint returns 200
    - Check server.js is working
    - Review logs for errors
+
+### Chrome Troubleshooting
+
+**If you get Chrome errors in Render:**
+
+1. **Set Environment Variables:**
+   ```env
+   PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+   ```
+
+2. **Alternative Chrome Paths:**
+   - `/usr/bin/google-chrome`
+   - `/usr/bin/chromium-browser`
+   - `/usr/bin/chromium`
+   - `/opt/google/chrome/chrome`
+
+3. **Test Chrome Locally:**
+   ```bash
+   npm run test-chrome
+   ```
+
+4. **Use Docker (Alternative):**
+   ```bash
+   # Build Docker image
+   docker build -t eprocurement-scraper .
+   
+   # Run container
+   docker run -p 3000:3000 -e MONGODB_URI=your_uri eprocurement-scraper
+   ```
 
 ### Environment Variables
 
@@ -134,6 +181,8 @@ Required for production:
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/eprocurement
 NODE_ENV=production
 PORT=3000
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ```
 
 Optional:
@@ -147,6 +196,7 @@ LOG_LEVEL=info
 - **Application Logs**: Check console output
 - **Health Check**: Visit `/health` endpoint
 - **Database**: Monitor MongoDB connection
+- **Chrome Test**: Run `npm run test-chrome`
 
 ## 🔄 Continuous Deployment
 
@@ -215,6 +265,7 @@ LOG_LEVEL=info
 - 2-second delays between requests
 - Headless browser mode
 - Graceful error handling
+- Disabled images/CSS for faster loading
 
 ### Resource Limits
 
@@ -234,6 +285,9 @@ npm run build-check
 # Test database
 npm test
 
+# Test Chrome
+npm run test-chrome
+
 # Debug issues
 npm run debug
 
@@ -247,6 +301,7 @@ npm start
 2. **Memory Issues**: Optimize Puppeteer settings
 3. **Database Timeout**: Check MongoDB connection string
 4. **Health Check Fails**: Verify server.js is working
+5. **Chrome Not Found**: Set `PUPPETEER_EXECUTABLE_PATH`
 
 ## 📝 Notes
 
@@ -254,4 +309,5 @@ npm start
 - HTTP server keeps the service alive
 - Health checks ensure service availability
 - Logs are available in Render dashboard
-- Environment variables are securely stored 
+- Environment variables are securely stored
+- Chrome is automatically detected and configured 

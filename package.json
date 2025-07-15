@@ -11,7 +11,9 @@
     "pages": "node scrape-pages.js",
     "build": "npm install && node build-check.js",
     "render-start": "node start.js",
-    "build-check": "node build-check.js"
+    "build-check": "node build-check.js",
+    "test-chrome": "node test-chrome.js",
+    "postinstall": "node -e \"try { require('puppeteer').executablePath } catch(e) { console.log('Puppeteer browser not found, will use system Chrome') }\""
   },
   "dependencies": {
     "puppeteer": "^22.0.0",

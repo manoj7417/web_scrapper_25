@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const config = require('../config');
-const logger = require('../utils/logger');
+const logger = require('./utils/logger');
 const Tender = require('../models/Tender');
 
 class Scraper {
@@ -12,7 +12,8 @@ class Scraper {
 
     async init() {
         try {
-            this.browser = await puppeteer.launch({
+            // Configure Puppeteer for Render deployment
+            const launchOptions = {
                 headless: config.scraper.headless,
                 args: [
                     '--no-sandbox',
@@ -21,13 +22,93 @@ class Scraper {
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
                     '--no-zygote',
-                    '--disable-gpu'
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-extensions',
+                    '--disable-plugins',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-default-apps',
+                    '--disable-sync',
+                    '--disable-translate',
+                    '--hide-scrollbars',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-pings',
+                    '--disable-background-networking',
+                    '--disable-component-extensions-with-background-pages',
+                    '--disable-background-mode',
+                    '--disable-client-side-phishing-detection',
+                    '--disable-domain-reliability',
+                    '--disable-features=AudioServiceOutOfProcess',
+                    '--disable-hang-monitor',
+                    '--disable-prompt-on-repost',
+                    '--disable-sync-preferences',
+                    '--disable-web-resources',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection'
                 ]
-            });
+            };
+
+            // For Render deployment, try to find Chrome in common locations
+            if (process.env.NODE_ENV === 'production') {
+                const possiblePaths = [
+                    process.env.PUPPETEER_EXECUTABLE_PATH,
+                    '/usr/bin/google-chrome',
+                    '/usr/bin/chromium-browser',
+                    '/usr/bin/chromium',
+                    '/opt/google/chrome/chrome',
+                    '/usr/bin/chrome',
+                    '/usr/bin/google-chrome-stable'
+                ].filter(Boolean);
+
+                for (const path of possiblePaths) {
+                    try {
+                        const fs = require('fs');
+                        if (fs.existsSync(path)) {
+                            launchOptions.executablePath = path;
+                            logger.info(`Using Chrome executable: ${path}`);
+                            break;
+                        }
+                    } catch (error) {
+                        // Continue to next path
+                    }
+                }
+
+                // If no Chrome found, try to use Puppeteer's bundled Chrome
+                if (!launchOptions.executablePath) {
+                    try {
+                        const puppeteerPath = require('puppeteer').executablePath();
+                        if (puppeteerPath) {
+                            launchOptions.executablePath = puppeteerPath;
+                            logger.info(`Using Puppeteer bundled Chrome: ${puppeteerPath}`);
+                        }
+                    } catch (error) {
+                        logger.warn('No Chrome executable found, trying without executable path');
+                    }
+                }
+            }
+
+            this.browser = await puppeteer.launch(launchOptions);
 
             this.page = await this.browser.newPage();
             await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
             await this.page.setViewport({ width: 1920, height: 1080 });
+
+            // Disable images and CSS for faster loading
+            await this.page.setRequestInterception(true);
+            this.page.on('request', (req) => {
+                if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+                    req.abort();
+                } else {
+                    req.continue();
+                }
+            });
+
             logger.success('Browser launched');
         } catch (error) {
             logger.error('Failed to launch browser', error);
