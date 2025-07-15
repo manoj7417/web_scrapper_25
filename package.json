@@ -2,15 +2,15 @@
   "name": "eprocurement-scraper",
   "version": "1.0.0",
   "description": "Simple Node.js scraper for Indian Government eProcurement portal",
-  "main": "start.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node start.js",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node test-connection.js",
     "debug": "node debug.js",
     "pages": "node scrape-pages.js",
     "build": "npm install && node build-check.js",
-    "render-start": "node start.js",
+    "render-start": "node index.js",
     "build-check": "node build-check.js",
     "test-chrome": "node test-chrome.js",
     "postinstall": "node -e \"try { require('puppeteer').executablePath } catch(e) { console.log('Puppeteer browser not found, will use system Chrome') }\""

@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const config = require('../config');
-const logger = require('./utils/logger');
+const logger = require('../utils/logger');
 const Tender = require('../models/Tender');
 
 class Scraper {

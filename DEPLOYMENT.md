@@ -26,7 +26,7 @@ PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 The project includes:
 - `render.yaml` - Render configuration
-- `start.js` - Production start script
+- `index.js` - Main entry point
 - `server.js` - HTTP server for health checks
 - `Procfile` - Alternative deployment config
 - `Dockerfile` - Docker deployment option
@@ -42,7 +42,7 @@ The project includes:
    - **Name**: eprocurement-scraper
    - **Environment**: Node
    - **Build Command**: `npm install`
-   - **Start Command**: `node start.js`
+   - **Start Command**: `node index.js`
    - **Health Check Path**: `/`
 
 3. **Set Environment Variables**
@@ -86,9 +86,8 @@ npm start
 ## 📋 File Structure for Deployment
 
 ```
-├── start.js              # Production start script
+├── index.js              # Main entry point
 ├── server.js             # HTTP server for health checks
-├── index.js              # Development entry point
 ├── config.js             # Configuration
 ├── package.json          # Dependencies and scripts
 ├── render.yaml           # Render configuration
@@ -139,7 +138,12 @@ npm start
    - **"Permission denied"**: Add `--no-sandbox` and `--disable-setuid-sandbox` args
    - **"Memory issues"**: Reduce page limits in production
 
-5. **Health Check Fails**
+5. **Module Path Errors**
+   - Ensure all files are in the correct directory structure
+   - Check that `index.js` is the main entry point
+   - Verify all require paths are correct
+
+6. **Health Check Fails**
    - Verify `/` endpoint returns 200
    - Check server.js is working
    - Review logs for errors
@@ -302,6 +306,7 @@ npm start
 3. **Database Timeout**: Check MongoDB connection string
 4. **Health Check Fails**: Verify server.js is working
 5. **Chrome Not Found**: Set `PUPPETEER_EXECUTABLE_PATH`
+6. **Module Path Errors**: Ensure correct file structure
 
 ## 📝 Notes
 
@@ -310,4 +315,5 @@ npm start
 - Health checks ensure service availability
 - Logs are available in Render dashboard
 - Environment variables are securely stored
-- Chrome is automatically detected and configured 
+- Chrome is automatically detected and configured
+- Main entry point is `index.js` 
