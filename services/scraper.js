@@ -67,6 +67,7 @@ class Scraper {
                     '/usr/bin/google-chrome-stable'
                 ].filter(Boolean);
 
+                // Try to find Chrome executable
                 for (const path of possiblePaths) {
                     try {
                         const fs = require('fs');
@@ -92,6 +93,34 @@ class Scraper {
                         logger.warn('No Chrome executable found, trying without executable path');
                     }
                 }
+
+                // Add additional Chrome arguments for Render
+                launchOptions.args.push(
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-default-apps',
+                    '--disable-sync',
+                    '--disable-translate',
+                    '--hide-scrollbars',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--no-pings',
+                    '--disable-background-networking',
+                    '--disable-component-extensions-with-background-pages',
+                    '--disable-background-mode',
+                    '--disable-client-side-phishing-detection',
+                    '--disable-domain-reliability',
+                    '--disable-features=AudioServiceOutOfProcess',
+                    '--disable-hang-monitor',
+                    '--disable-prompt-on-repost',
+                    '--disable-sync-preferences',
+                    '--disable-web-resources',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection'
+                );
             }
 
             this.browser = await puppeteer.launch(launchOptions);
