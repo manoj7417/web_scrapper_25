@@ -1,10 +1,33 @@
 const Scraper = require('./services/scraper');
 const database = require('./utils/database');
 const logger = require('./utils/logger');
+const http = require('http');
+
+// Create HTTP server for health checks
+const server = http.createServer((req, res) => {
+    if (req.url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            service: 'eProcurement Scraper'
+        }));
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+    }
+});
+
+const PORT = process.env.PORT || 3000;
 
 async function main() {
     try {
         logger.info('🚀 Starting eProcurement Scraper...');
+
+        // Start HTTP server
+        server.listen(PORT, () => {
+            logger.info(`Health check server running on port ${PORT}`);
+        });
 
         // Connect to database
         await database.connect();
@@ -31,7 +54,9 @@ async function main() {
 // Handle graceful shutdown
 process.on('SIGINT', () => {
     logger.info('Shutting down...');
-    process.exit(0);
+    server.close(() => {
+        process.exit(0);
+    });
 });
 
 // Run the application

@@ -58,6 +58,7 @@ class Scraper {
             if (process.env.NODE_ENV === 'production') {
                 const possiblePaths = [
                     process.env.PUPPETEER_EXECUTABLE_PATH,
+                    '/usr/bin/google-chrome-stable',
                     '/usr/bin/google-chrome',
                     '/usr/bin/chromium-browser',
                     '/usr/bin/chromium',

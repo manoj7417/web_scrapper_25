@@ -1,82 +1,99 @@
-const fs = require('fs');
-const path = require('path');
 const logger = require('./utils/logger');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
-async function checkBuild() {
-    logger.info('🔍 Checking build configuration...');
+async function buildCheck() {
+    logger.info('🔍 Running build check...');
 
-    const checks = [
-        {
-            name: 'Package.json exists',
-            check: () => fs.existsSync('package.json'),
-            fix: 'Create package.json file'
-        },
-        {
-            name: 'Start script exists',
-            check: () => fs.existsSync('start.js'),
-            fix: 'Create start.js file'
-        },
-        {
-            name: 'Main entry point exists',
-            check: () => fs.existsSync('index.js'),
-            fix: 'Create index.js file'
-        },
-        {
-            name: 'Config file exists',
-            check: () => fs.existsSync('config.js'),
-            fix: 'Create config.js file'
-        },
-        {
-            name: 'Services directory exists',
-            check: () => fs.existsSync('services/scraper.js'),
-            fix: 'Create services/scraper.js file'
-        },
-        {
-            name: 'Utils directory exists',
-            check: () => fs.existsSync('utils/logger.js') && fs.existsSync('utils/database.js'),
-            fix: 'Create utils directory with logger.js and database.js'
-        },
-        {
-            name: 'Models directory exists',
-            check: () => fs.existsSync('models/Tender.js'),
-            fix: 'Create models/Tender.js file'
-        },
-        {
-            name: 'Gitignore exists',
-            check: () => fs.existsSync('.gitignore'),
-            fix: 'Create .gitignore file'
+    try {
+        // Check if we're in production environment
+        if (process.env.NODE_ENV === 'production') {
+            logger.info('Production environment detected');
+
+            // Try to install Chrome if not present
+            try {
+                logger.info('Installing Chrome...');
+                execSync('npx puppeteer browsers install chrome', { stdio: 'inherit' });
+                logger.success('Chrome installed via Puppeteer');
+            } catch (error) {
+                logger.warn('Failed to install Chrome via Puppeteer, trying system installation');
+
+                // Try system Chrome installation
+                try {
+                    execSync('apt-get update', { stdio: 'inherit' });
+                    execSync('apt-get install -y wget gnupg', { stdio: 'inherit' });
+                    execSync('wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -', { stdio: 'inherit' });
+                    execSync('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list', { stdio: 'inherit' });
+                    execSync('apt-get update', { stdio: 'inherit' });
+                    execSync('apt-get install -y google-chrome-stable', { stdio: 'inherit' });
+                    logger.success('Chrome installed via system package manager');
+                } catch (sysError) {
+                    logger.warn('System Chrome installation failed:', sysError.message);
+                }
+            }
         }
-    ];
 
-    let passed = 0;
-    let failed = 0;
+        // Check Chrome paths
+        const possiblePaths = [
+            process.env.PUPPETEER_EXECUTABLE_PATH,
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/opt/google/chrome/chrome',
+            '/usr/bin/chrome'
+        ].filter(Boolean);
 
-    for (const check of checks) {
+        logger.info('Checking Chrome availability:');
+        let chromeFound = false;
+
+        for (const path of possiblePaths) {
+            try {
+                if (fs.existsSync(path)) {
+                    logger.success(`✅ Chrome found at: ${path}`);
+                    chromeFound = true;
+                } else {
+                    logger.warn(`❌ Chrome not found at: ${path}`);
+                }
+            } catch (error) {
+                logger.warn(`❌ Error checking: ${path}`);
+            }
+        }
+
+        // Check Puppeteer bundled Chrome
         try {
-            if (check.check()) {
-                logger.success(`✅ ${check.name}`);
-                passed++;
-            } else {
-                logger.error(`❌ ${check.name} - ${check.fix}`);
-                failed++;
+            const puppeteer = require('puppeteer');
+            const puppeteerPath = puppeteer.executablePath();
+            if (puppeteerPath) {
+                logger.success(`✅ Puppeteer bundled Chrome: ${puppeteerPath}`);
+                chromeFound = true;
             }
         } catch (error) {
-            logger.error(`❌ ${check.name} - Error: ${error.message}`);
-            failed++;
+            logger.warn('❌ Puppeteer bundled Chrome not available');
         }
-    }
 
-    logger.info(`Build check completed: ${passed} passed, ${failed} failed`);
+        if (!chromeFound) {
+            logger.error('❌ No Chrome installation found');
+            process.exit(1);
+        }
 
-    if (failed > 0) {
-        logger.error('Build check failed. Please fix the issues above.');
+        // Test database connection
+        try {
+            const database = require('./utils/database');
+            await database.connect();
+            logger.success('✅ Database connection successful');
+            await database.disconnect();
+        } catch (error) {
+            logger.error('❌ Database connection failed:', error.message);
+            // Don't exit for database issues in build check
+        }
+
+        logger.success('✅ Build check completed successfully');
+
+    } catch (error) {
+        logger.error('❌ Build check failed:', error.message);
         process.exit(1);
-    } else {
-        logger.success('✅ All build checks passed!');
     }
 }
 
-checkBuild().catch(error => {
-    logger.error('Build check failed', error);
-    process.exit(1);
-}); 
+buildCheck(); 

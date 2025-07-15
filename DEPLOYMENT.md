@@ -1,319 +1,122 @@
-# Deployment Guide
+# Deployment Guide for eProcurement Scraper
 
-This guide will help you deploy the eProcurement Scraper to Render and other platforms.
+This guide covers deploying the eProcurement scraper to Render.com with proper Chrome installation and configuration.
 
-## 🚀 Render Deployment
+## Prerequisites
 
-### 1. Prerequisites
+- Render.com account
+- MongoDB database (MongoDB Atlas recommended)
+- Git repository with the scraper code
 
-- GitHub repository with your code
-- MongoDB database (local or cloud)
-- Render account
+## Environment Variables
 
-### 2. Environment Variables
+Set these environment variables in your Render service:
 
-Set these environment variables in Render:
+- `NODE_ENV`: `production`
+- `MONGODB_URI`: Your MongoDB connection string
+- `PUPPETEER_EXECUTABLE_PATH`: `/usr/bin/google-chrome-stable`
+- `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD`: `false`
 
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/eprocurement
-NODE_ENV=production
-PORT=3000
-PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-```
+## Render Configuration
 
-### 3. Render Configuration
+The `render.yaml` file is configured to:
 
-The project includes:
-- `render.yaml` - Render configuration
-- `index.js` - Main entry point
-- `server.js` - HTTP server for health checks
-- `Procfile` - Alternative deployment config
-- `Dockerfile` - Docker deployment option
+1. **Install Chrome during build**: Uses both Puppeteer's bundled Chrome and system Chrome installation
+2. **Health checks**: Includes a `/health` endpoint for monitoring
+3. **Proper environment**: Sets production environment and Chrome paths
 
-### 4. Deployment Steps
+### Build Process
 
-1. **Connect GitHub Repository**
-   - Go to Render Dashboard
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository
+The build command installs Chrome in multiple ways:
+- `npx puppeteer browsers install chrome` - Installs Puppeteer's bundled Chrome
+- System Chrome installation via apt-get
+- Fallback to Puppeteer's bundled Chrome if system installation fails
 
-2. **Configure Service**
-   - **Name**: eprocurement-scraper
-   - **Environment**: Node
-   - **Build Command**: `npm install`
-   - **Start Command**: `node index.js`
-   - **Health Check Path**: `/`
+### Chrome Installation Strategy
 
-3. **Set Environment Variables**
-   - Add `MONGODB_URI` with your MongoDB connection string
-   - Add `NODE_ENV=production`
-   - Add `PORT=3000`
-   - Add `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome`
-   - Add `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true`
+The scraper uses a multi-layered approach to find Chrome:
 
-4. **Deploy**
-   - Click "Create Web Service"
-   - Render will automatically build and deploy
+1. **Environment variable**: `PUPPETEER_EXECUTABLE_PATH`
+2. **System Chrome**: `/usr/bin/google-chrome-stable`
+3. **Alternative paths**: Various common Chrome locations
+4. **Puppeteer bundled**: Falls back to Puppeteer's bundled Chrome
 
-## 🔧 Build Verification
+## Health Check
 
-### Local Build Test
-
-```bash
-# Check build configuration
-npm run build-check
-
-# Test full build
-npm run build
-
-# Test Chrome installation
-npm run test-chrome
-
-# Test start script
-npm start
-```
-
-### Build Requirements
-
-- ✅ Node.js >= 18.0.0
-- ✅ npm >= 8.0.0
-- ✅ All required files present
-- ✅ Dependencies installed
-- ✅ MongoDB connection configured
-- ✅ Chrome/Puppeteer working
-
-## 📋 File Structure for Deployment
-
-```
-├── index.js              # Main entry point
-├── server.js             # HTTP server for health checks
-├── config.js             # Configuration
-├── package.json          # Dependencies and scripts
-├── render.yaml           # Render configuration
-├── Procfile              # Alternative deployment
-├── Dockerfile            # Docker deployment
-├── .gitignore            # Git ignore rules
-├── env.example           # Environment variables example
-├── build-check.js        # Build verification
-├── test-chrome.js        # Chrome installation test
-├── services/
-│   └── scraper.js       # Main scraping logic
-├── utils/
-│   ├── database.js      # Database utilities
-│   └── logger.js        # Logging utilities
-└── models/
-    └── Tender.js        # Database model
-```
-
-## 🛠️ Troubleshooting
-
-### Common Render Issues
-
-1. **Build Fails**
-   ```bash
-   # Check build locally
-   npm run build-check
-   ```
-
-2. **Dependencies Missing**
-   ```bash
-   # Reinstall dependencies
-   npm install
-   ```
-
-3. **MongoDB Connection Fails**
-   - Verify MongoDB URI is correct
-   - Check network connectivity
-   - Ensure database exists
-
-4. **Puppeteer/Chrome Issues**
-   ```bash
-   # Test Chrome installation
-   npm run test-chrome
-   ```
-   
-   **Common Chrome Errors:**
-   - **"Could not find Chrome"**: Set `PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome`
-   - **"Permission denied"**: Add `--no-sandbox` and `--disable-setuid-sandbox` args
-   - **"Memory issues"**: Reduce page limits in production
-
-5. **Module Path Errors**
-   - Ensure all files are in the correct directory structure
-   - Check that `index.js` is the main entry point
-   - Verify all require paths are correct
-
-6. **Health Check Fails**
-   - Verify `/` endpoint returns 200
-   - Check server.js is working
-   - Review logs for errors
-
-### Chrome Troubleshooting
-
-**If you get Chrome errors in Render:**
-
-1. **Set Environment Variables:**
-   ```env
-   PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-   ```
-
-2. **Alternative Chrome Paths:**
-   - `/usr/bin/google-chrome`
-   - `/usr/bin/chromium-browser`
-   - `/usr/bin/chromium`
-   - `/opt/google/chrome/chrome`
-
-3. **Test Chrome Locally:**
-   ```bash
-   npm run test-chrome
-   ```
-
-4. **Use Docker (Alternative):**
-   ```bash
-   # Build Docker image
-   docker build -t eprocurement-scraper .
-   
-   # Run container
-   docker run -p 3000:3000 -e MONGODB_URI=your_uri eprocurement-scraper
-   ```
-
-### Environment Variables
-
-Required for production:
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/eprocurement
-NODE_ENV=production
-PORT=3000
-PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-```
-
-Optional:
-```env
-LOG_LEVEL=info
-```
-
-### Logs and Monitoring
-
-- **Render Logs**: Available in Render dashboard
-- **Application Logs**: Check console output
-- **Health Check**: Visit `/health` endpoint
-- **Database**: Monitor MongoDB connection
-- **Chrome Test**: Run `npm run test-chrome`
-
-## 🔄 Continuous Deployment
-
-### GitHub Integration
-
-1. **Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Deploy to Render"
-   git push origin main
-   ```
-
-2. **Automatic Deployment**
-   - Render automatically detects changes
-   - Builds and deploys new version
-   - Health checks ensure service is running
-
-### Manual Deployment
-
-1. **Trigger Manual Deploy**
-   - Go to Render dashboard
-   - Click "Manual Deploy"
-   - Select branch/commit
-
-2. **Rollback if Needed**
-   - Go to deployment history
-   - Click "Rollback" on previous version
-
-## 📊 Monitoring
-
-### Health Check Endpoints
-
-- `GET /` - Main health check
-- `GET /health` - Detailed health status
-
-### Expected Response
+The application includes a health check endpoint at `/health` that returns:
 
 ```json
 {
   "status": "healthy",
-  "service": "eProcurement Scraper",
-  "timestamp": "2024-01-15T10:30:00.000Z"
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "service": "eProcurement Scraper"
 }
 ```
 
-## 🔒 Security
+## Troubleshooting
 
-### Environment Variables
+### Chrome Not Found
 
-- Never commit `.env` files
-- Use Render's environment variable system
-- Rotate MongoDB credentials regularly
+If you see "Could not find Chrome" errors:
 
-### Database Security
-
-- Use MongoDB Atlas for production
-- Enable network access controls
-- Use strong passwords
-- Enable SSL connections
-
-## 📈 Performance
-
-### Production Optimizations
-
-- Limited to 5 pages in production
-- 2-second delays between requests
-- Headless browser mode
-- Graceful error handling
-- Disabled images/CSS for faster loading
-
-### Resource Limits
-
-- Render free tier: 750 hours/month
-- Memory: 512MB
-- CPU: Shared
-- Storage: 1GB
-
-## 🆘 Support
-
-### Debug Commands
-
-```bash
-# Check build
-npm run build-check
-
-# Test database
-npm test
-
-# Test Chrome
-npm run test-chrome
-
-# Debug issues
-npm run debug
-
-# Test scraping
-npm start
-```
+1. **Check build logs**: Ensure Chrome installation completed successfully
+2. **Verify paths**: Check if Chrome exists at expected locations
+3. **Test locally**: Run `npm run test-chrome` to verify Chrome installation
 
 ### Common Issues
 
-1. **Build Timeout**: Increase build timeout in Render
-2. **Memory Issues**: Optimize Puppeteer settings
-3. **Database Timeout**: Check MongoDB connection string
-4. **Health Check Fails**: Verify server.js is working
-5. **Chrome Not Found**: Set `PUPPETEER_EXECUTABLE_PATH`
-6. **Module Path Errors**: Ensure correct file structure
+1. **Chrome installation fails**: The build process tries multiple installation methods
+2. **Permission errors**: Chrome runs with `--no-sandbox` for containerized environments
+3. **Memory issues**: Chrome is configured with minimal resource usage
 
-## 📝 Notes
+### Debugging
 
-- The scraper runs once on startup
-- HTTP server keeps the service alive
-- Health checks ensure service availability
-- Logs are available in Render dashboard
-- Environment variables are securely stored
-- Chrome is automatically detected and configured
-- Main entry point is `index.js` 
+Use these commands to debug Chrome issues:
+
+```bash
+# Test Chrome installation
+npm run test-chrome
+
+# Check build configuration
+npm run build-check
+
+# Test database connection
+npm run test
+```
+
+## Monitoring
+
+- **Health checks**: Monitor `/health` endpoint
+- **Logs**: Check application logs for scraping status
+- **Database**: Monitor MongoDB for new tender data
+
+## Performance
+
+The scraper is optimized for:
+- **Resource usage**: Minimal Chrome configuration
+- **Error handling**: Robust retry mechanisms
+- **Duplicate prevention**: MongoDB-based deduplication
+- **Pagination**: Multi-page scraping support
+
+## Security
+
+- **No sandbox**: Chrome runs without sandbox for containerized environments
+- **Minimal permissions**: Only necessary Chrome features enabled
+- **Environment isolation**: Production environment variables
+
+## Updates
+
+To update the deployment:
+
+1. Push changes to your Git repository
+2. Render will automatically redeploy
+3. Monitor build logs for Chrome installation
+4. Check health endpoint for successful deployment
+
+## Support
+
+For deployment issues:
+1. Check Render build logs
+2. Verify environment variables
+3. Test Chrome installation locally
+4. Review application logs for errors 
