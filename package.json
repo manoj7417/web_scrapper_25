@@ -1,0 +1,24 @@
+{
+  "name": "eprocurement-scraper",
+  "version": "1.0.0",
+  "description": "Simple Node.js scraper for Indian Government eProcurement portal",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node test-connection.js",
+    "debug": "node debug.js",
+    "pages": "node scrape-pages.js"
+  },
+  "dependencies": {
+    "puppeteer": "^22.0.0",
+    "mongoose": "^8.1.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
