@@ -7,13 +7,16 @@ module.exports = {
     scraper: {
         url: 'https://eprocure.gov.in/cppp/latestactivetendersnew/cpppdata',
         timeout: 30000,
-        headless: true,
+        headless: process.env.NODE_ENV === 'production' ? true : true,
         tableSelector: '#table tbody tr',
         pagination: {
             enabled: true,
             startPage: 1,
-            maxPages: 10, // Limit to prevent infinite scraping
-            delayBetweenPages: 2000 // 2 seconds delay between pages
+            maxPages: process.env.NODE_ENV === 'production' ? 5 : 10, // Limit pages in production
+            delayBetweenPages: 2000
         }
+    },
+    server: {
+        port: process.env.PORT || 3000
     }
 }; 

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: eprocurement-scraper
+    env: node
+    buildCommand: npm install
+    startCommand: node start.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true 
