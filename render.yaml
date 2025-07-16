@@ -17,7 +17,7 @@ services:
       node test-chrome.js
       node debug-chrome.js
       node test-deployment.js
-    startCommand: node diagnose.js
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production

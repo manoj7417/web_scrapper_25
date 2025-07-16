@@ -11,12 +11,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Helper function to check database connection
-function isDatabaseConnected() {
-    const mongoose = require('mongoose');
-    return mongoose.connection.readyState === 1;
-}
-
 // API Routes
 
 // Health check
@@ -25,30 +19,13 @@ app.get('/health', (req, res) => {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'eProcurement Scraper API',
-        version: '1.0.0',
-        database: isDatabaseConnected() ? 'connected' : 'disconnected'
+        version: '1.0.0'
     });
 });
 
 // Get all tenders with pagination and filtering
 app.get('/api/tenders', async (req, res) => {
     try {
-        // Check if database is connected
-        if (!isDatabaseConnected()) {
-            return res.status(503).json({
-                success: false,
-                error: 'Database not connected',
-                message: 'The database is currently unavailable. Please try again later.',
-                data: [],
-                pagination: {
-                    page: 1,
-                    limit: 20,
-                    total: 0,
-                    totalPages: 0
-                }
-            });
-        }
-
         const {
             page = 1,
             limit = 20,
@@ -112,14 +89,7 @@ app.get('/api/tenders', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch tenders',
-            message: error.message,
-            data: [],
-            pagination: {
-                page: 1,
-                limit: 20,
-                total: 0,
-                totalPages: 0
-            }
+            message: error.message
         });
     }
 });
@@ -127,14 +97,6 @@ app.get('/api/tenders', async (req, res) => {
 // Get tender by ID
 app.get('/api/tenders/:id', async (req, res) => {
     try {
-        if (!isDatabaseConnected()) {
-            return res.status(503).json({
-                success: false,
-                error: 'Database not connected',
-                message: 'The database is currently unavailable. Please try again later.'
-            });
-        }
-
         const tender = await Tender.findById(req.params.id).lean();
 
         if (!tender) {
@@ -162,19 +124,6 @@ app.get('/api/tenders/:id', async (req, res) => {
 // Get statistics
 app.get('/api/stats', async (req, res) => {
     try {
-        if (!isDatabaseConnected()) {
-            return res.status(503).json({
-                success: false,
-                error: 'Database not connected',
-                message: 'The database is currently unavailable. Please try again later.',
-                data: {
-                    totalTenders: 0,
-                    todayTenders: 0,
-                    topOrganisations: []
-                }
-            });
-        }
-
         const totalTenders = await Tender.countDocuments();
         const todayTenders = await Tender.countDocuments({
             publishedDate: {
@@ -202,12 +151,7 @@ app.get('/api/stats', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch statistics',
-            message: error.message,
-            data: {
-                totalTenders: 0,
-                todayTenders: 0,
-                topOrganisations: []
-            }
+            message: error.message
         });
     }
 });
@@ -243,15 +187,6 @@ app.post('/api/scrape', async (req, res) => {
 // Search tenders
 app.get('/api/search', async (req, res) => {
     try {
-        if (!isDatabaseConnected()) {
-            return res.status(503).json({
-                success: false,
-                error: 'Database not connected',
-                message: 'The database is currently unavailable. Please try again later.',
-                data: []
-            });
-        }
-
         const { q, limit = 10 } = req.query;
 
         if (!q) {
@@ -281,8 +216,7 @@ app.get('/api/search', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to search tenders',
-            message: error.message,
-            data: []
+            message: error.message
         });
     }
 });

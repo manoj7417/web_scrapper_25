@@ -2,7 +2,7 @@
   "name": "eprocurement-scraper",
   "version": "1.0.0",
   "description": "Simple Node.js scraper for Indian Government eProcurement portal",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon index.js",
