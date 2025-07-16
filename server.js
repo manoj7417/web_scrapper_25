@@ -1,33 +1,39 @@
-const http = require('http');
+const app = require('./api');
+const database = require('./utils/database');
 const logger = require('./utils/logger');
-
-const server = http.createServer((req, res) => {
-    if (req.url === '/' || req.url === '/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-            status: 'healthy',
-            service: 'eProcurement Scraper',
-            timestamp: new Date().toISOString()
-        }));
-    } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not found' }));
-    }
-});
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
-});
+async function startServer() {
+    try {
+        // Connect to database
+        await database.connect();
+        logger.success('Database connected');
+
+        // Start server
+        app.listen(PORT, () => {
+            logger.success(`🚀 API Server running on port ${PORT}`);
+            logger.info(`Health check: http://localhost:${PORT}/health`);
+            logger.info(`API Documentation: http://localhost:${PORT}/api/tenders`);
+        });
+
+    } catch (error) {
+        logger.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
 
 // Handle graceful shutdown
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM received, shutting down gracefully');
-    server.close(() => {
-        logger.info('Server closed');
-        process.exit(0);
-    });
+process.on('SIGINT', async () => {
+    logger.info('Shutting down server...');
+    await database.disconnect();
+    process.exit(0);
 });
 
-module.exports = server; 
+process.on('SIGTERM', async () => {
+    logger.info('Shutting down server...');
+    await database.disconnect();
+    process.exit(0);
+});
+
+startServer(); 
