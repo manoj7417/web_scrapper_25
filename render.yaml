@@ -5,26 +5,13 @@ services:
     buildCommand: |
       npm install
       npx puppeteer browsers install chrome
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq wget gnupg ca-certificates
-      wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add - > /dev/null 2>&1
-      echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq google-chrome-stable
-      google-chrome-stable --version
-      ls -la /usr/bin/google-chrome*
-      which google-chrome-stable
-      node test-chrome.js
-      node debug-chrome.js
-      node test-deployment.js
-    startCommand: node server.js
+      node test-simple-chrome.js
+    startCommand: node index.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
         sync: false
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: /usr/bin/google-chrome-stable
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
         value: false
     healthCheckPath: /health
