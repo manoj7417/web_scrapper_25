@@ -9,7 +9,7 @@
     "test": "node test-connection.js",
     "debug": "node debug.js",
     "pages": "node scrape-pages.js",
-    "build": "npm install && npx puppeteer browsers install chrome && node test-chrome.js",
+    "build": "npm install && npx puppeteer browsers install chrome && node test-chrome.js && node build-check.js",
     "render-start": "node index.js",
     "build-check": "node build-check.js",
     "test-chrome": "node test-chrome.js",

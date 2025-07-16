@@ -1,122 +1,129 @@
 # Deployment Guide for eProcurement Scraper
 
-This guide covers deploying the eProcurement scraper to Render.com with proper Chrome installation and configuration.
+## Overview
+This guide explains how to deploy the eProcurement Scraper to Render.com with proper Chrome installation.
 
-## Prerequisites
+## Problem Solved
+The original deployment was failing because Chrome wasn't properly installed in the Render environment. The error was:
+```
+Could not find Chrome (ver. 127.0.6533.88). This can occur if either
+1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome`) or
+2. your cache path is incorrectly configured (which is: /opt/render/.cache/puppeteer).
+```
 
-- Render.com account
-- MongoDB database (MongoDB Atlas recommended)
-- Git repository with the scraper code
+## Solution Implemented
 
-## Environment Variables
+### 1. Updated `render.yaml`
+- Simplified build command to use a dedicated build script
+- Set `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` to avoid conflicts
+- Configured proper Chrome executable path
 
-Set these environment variables in your Render service:
+### 2. Created `render-build.sh`
+- Comprehensive build script that handles Chrome installation
+- Installs both Puppeteer's bundled Chrome and system Chrome
+- Verifies installation and provides detailed logging
+- Exits with error if Chrome installation fails
 
+### 3. Enhanced Chrome Detection
+- Updated `services/scraper.js` to better detect Chrome executable
+- Improved fallback mechanisms for different Chrome installations
+- Better error handling and logging
+
+### 4. Added Testing Scripts
+- `test-chrome.js`: Tests Chrome installation and functionality
+- `build-check.js`: Comprehensive build verification
+- Health check endpoint at `/health`
+
+## Deployment Process
+
+### 1. Automatic Deployment (Recommended)
+The app will automatically deploy when you push to your repository. The build process:
+
+1. **Install Dependencies**: `npm install`
+2. **Install Puppeteer Chrome**: `npx puppeteer browsers install chrome`
+3. **Install System Chrome**: Uses `render-build.sh` to install Google Chrome
+4. **Verify Installation**: Tests Chrome functionality
+5. **Start Application**: Runs `node index.js`
+
+### 2. Environment Variables
+Make sure these are set in your Render dashboard:
 - `NODE_ENV`: `production`
 - `MONGODB_URI`: Your MongoDB connection string
 - `PUPPETEER_EXECUTABLE_PATH`: `/usr/bin/google-chrome-stable`
-- `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD`: `false`
+- `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD`: `true`
 
-## Render Configuration
-
-The `render.yaml` file is configured to:
-
-1. **Install Chrome during build**: Uses both Puppeteer's bundled Chrome and system Chrome installation
-2. **Health checks**: Includes a `/health` endpoint for monitoring
-3. **Proper environment**: Sets production environment and Chrome paths
-
-### Build Process
-
-The build command installs Chrome in multiple ways:
-- `npx puppeteer browsers install chrome` - Installs Puppeteer's bundled Chrome
-- System Chrome installation via apt-get
-- Fallback to Puppeteer's bundled Chrome if system installation fails
-
-### Chrome Installation Strategy
-
-The scraper uses a multi-layered approach to find Chrome:
-
-1. **Environment variable**: `PUPPETEER_EXECUTABLE_PATH`
-2. **System Chrome**: `/usr/bin/google-chrome-stable`
-3. **Alternative paths**: Various common Chrome locations
-4. **Puppeteer bundled**: Falls back to Puppeteer's bundled Chrome
-
-## Health Check
-
-The application includes a health check endpoint at `/health` that returns:
-
+### 3. Health Check
+The app provides a health check endpoint at `/health` that returns:
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00.000Z",
+  "timestamp": "2025-01-16T04:55:21.308Z",
   "service": "eProcurement Scraper"
 }
 ```
 
 ## Troubleshooting
 
-### Chrome Not Found
+### Chrome Installation Issues
+If Chrome installation fails:
 
-If you see "Could not find Chrome" errors:
-
-1. **Check build logs**: Ensure Chrome installation completed successfully
-2. **Verify paths**: Check if Chrome exists at expected locations
-3. **Test locally**: Run `npm run test-chrome` to verify Chrome installation
+1. **Check Build Logs**: Look for Chrome installation errors in Render build logs
+2. **Verify Paths**: Ensure `/usr/bin/google-chrome-stable` exists
+3. **Test Locally**: Run `node test-chrome.js` to test Chrome functionality
 
 ### Common Issues
 
-1. **Chrome installation fails**: The build process tries multiple installation methods
-2. **Permission errors**: Chrome runs with `--no-sandbox` for containerized environments
-3. **Memory issues**: Chrome is configured with minimal resource usage
+1. **"No Chrome executable found"**
+   - Solution: The build script installs Chrome automatically
+   - Check if `render-build.sh` executed successfully
 
-### Debugging
+2. **"Failed to launch browser"**
+   - Solution: Chrome is installed but may need additional arguments
+   - The scraper includes comprehensive Chrome arguments for Render
 
-Use these commands to debug Chrome issues:
-
-```bash
-# Test Chrome installation
-npm run test-chrome
-
-# Check build configuration
-npm run build-check
-
-# Test database connection
-npm run test
-```
+3. **Database Connection Issues**
+   - Ensure `MONGODB_URI` is set correctly
+   - Check if MongoDB is accessible from Render
 
 ## Monitoring
 
-- **Health checks**: Monitor `/health` endpoint
-- **Logs**: Check application logs for scraping status
-- **Database**: Monitor MongoDB for new tender data
+### Build Verification
+The build process includes multiple verification steps:
+- Chrome installation verification
+- Chrome functionality testing
+- Database connection testing
+- Application startup testing
 
-## Performance
+### Logs
+Monitor these logs in Render:
+- Build logs: Chrome installation progress
+- Application logs: Scraping progress and errors
+- Health check: Application status
 
-The scraper is optimized for:
-- **Resource usage**: Minimal Chrome configuration
-- **Error handling**: Robust retry mechanisms
-- **Duplicate prevention**: MongoDB-based deduplication
-- **Pagination**: Multi-page scraping support
+## Performance Optimizations
 
-## Security
+### Chrome Arguments
+The scraper uses optimized Chrome arguments for Render:
+- `--no-sandbox`: Required for containerized environments
+- `--disable-dev-shm-usage`: Prevents memory issues
+- `--disable-gpu`: Reduces resource usage
+- Additional flags for stability and performance
 
-- **No sandbox**: Chrome runs without sandbox for containerized environments
-- **Minimal permissions**: Only necessary Chrome features enabled
-- **Environment isolation**: Production environment variables
+### Resource Management
+- Headless mode for reduced memory usage
+- Request interception to block unnecessary resources
+- Proper browser cleanup after scraping
 
-## Updates
-
-To update the deployment:
-
-1. Push changes to your Git repository
-2. Render will automatically redeploy
-3. Monitor build logs for Chrome installation
-4. Check health endpoint for successful deployment
+## Rollback Strategy
+If deployment fails:
+1. Check build logs for specific errors
+2. Verify environment variables
+3. Test Chrome installation manually
+4. Rollback to previous working version if needed
 
 ## Support
-
 For deployment issues:
-1. Check Render build logs
-2. Verify environment variables
-3. Test Chrome installation locally
-4. Review application logs for errors 
+1. Check Render documentation: https://render.com/docs
+2. Review build logs for specific error messages
+3. Test Chrome installation locally with Docker
+4. Contact support with specific error details 

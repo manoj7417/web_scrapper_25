@@ -1,50 +1,46 @@
 const puppeteer = require('puppeteer');
-const fs = require('fs');
 const logger = require('./utils/logger');
 
 async function testChrome() {
-    logger.info('🔍 Testing Chrome installation...');
+    logger.info('🧪 Testing Chrome installation...');
 
-    // Check possible Chrome paths
-    const possiblePaths = [
-        process.env.PUPPETEER_EXECUTABLE_PATH,
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser',
-        '/usr/bin/chromium',
-        '/opt/google/chrome/chrome',
-        '/usr/bin/chrome'
-    ].filter(Boolean);
+    try {
+        // Check for Chrome executable
+        const possiblePaths = [
+            process.env.PUPPETEER_EXECUTABLE_PATH,
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium'
+        ].filter(Boolean);
 
-    logger.info('Checking Chrome paths:');
-    for (const path of possiblePaths) {
-        try {
-            if (fs.existsSync(path)) {
-                logger.success(`✅ Found Chrome at: ${path}`);
-            } else {
-                logger.warn(`❌ Not found: ${path}`);
+        let chromePath = null;
+        for (const path of possiblePaths) {
+            try {
+                const fs = require('fs');
+                if (fs.existsSync(path)) {
+                    chromePath = path;
+                    logger.success(`✅ Chrome found at: ${path}`);
+                    break;
+                }
+            } catch (error) {
+                // Continue to next path
             }
-        } catch (error) {
-            logger.warn(`❌ Error checking: ${path} - ${error.message}`);
         }
-    }
 
-    // Try to get Puppeteer's bundled Chrome
-    try {
-        const puppeteerPath = require('puppeteer').executablePath();
-        if (puppeteerPath) {
-            logger.success(`✅ Puppeteer bundled Chrome: ${puppeteerPath}`);
-        } else {
-            logger.warn('❌ No Puppeteer bundled Chrome found');
+        if (!chromePath) {
+            // Try Puppeteer's bundled Chrome
+            try {
+                chromePath = require('puppeteer').executablePath();
+                if (chromePath) {
+                    logger.success(`✅ Using Puppeteer bundled Chrome: ${chromePath}`);
+                }
+            } catch (error) {
+                logger.warn('No Chrome executable found');
+            }
         }
-    } catch (error) {
-        logger.warn(`❌ Error getting Puppeteer Chrome: ${error.message}`);
-    }
 
-    // Try to launch browser
-    try {
-        logger.info('🚀 Attempting to launch browser...');
-
+        // Launch browser
         const launchOptions = {
             headless: true,
             args: [
@@ -55,33 +51,32 @@ async function testChrome() {
             ]
         };
 
-        // Try to find Chrome executable
-        for (const path of possiblePaths) {
-            try {
-                if (fs.existsSync(path)) {
-                    launchOptions.executablePath = path;
-                    logger.info(`Trying with executable: ${path}`);
-                    break;
-                }
-            } catch (error) {
-                // Continue to next path
-            }
+        if (chromePath) {
+            launchOptions.executablePath = chromePath;
         }
 
+        logger.info('🚀 Launching browser...');
         const browser = await puppeteer.launch(launchOptions);
+
+        logger.info('📄 Creating new page...');
         const page = await browser.newPage();
 
-        logger.success('✅ Browser launched successfully!');
+        logger.info('🌐 Navigating to test page...');
+        await page.goto('https://www.google.com', {
+            waitUntil: 'networkidle2',
+            timeout: 10000
+        });
 
-        await page.goto('https://www.google.com');
-        logger.success('✅ Successfully navigated to Google');
+        const title = await page.title();
+        logger.success(`✅ Page loaded successfully. Title: ${title}`);
 
         await browser.close();
-        logger.success('✅ Browser closed successfully');
+        logger.success('✅ Chrome test completed successfully!');
 
     } catch (error) {
-        logger.error('❌ Failed to launch browser:', error.message);
+        logger.error('❌ Chrome test failed:', error.message);
+        process.exit(1);
     }
 }
 
-testChrome().catch(console.error); 
+testChrome(); 

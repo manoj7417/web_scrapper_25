@@ -63,8 +63,7 @@ class Scraper {
                     '/usr/bin/chromium-browser',
                     '/usr/bin/chromium',
                     '/opt/google/chrome/chrome',
-                    '/usr/bin/chrome',
-                    '/usr/bin/google-chrome-stable'
+                    '/usr/bin/chrome'
                 ].filter(Boolean);
 
                 // Try to find Chrome executable
