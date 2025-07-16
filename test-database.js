@@ -1,59 +1,39 @@
 const database = require('./utils/database');
-const Tender = require('./models/Tender');
+const config = require('./config');
 const logger = require('./utils/logger');
 
 async function testDatabase() {
-    try {
-        logger.info('🔍 Testing database connection and data...');
+    logger.info('🧪 Testing database connection...');
 
-        // Connect to database
+    try {
+        // Log configuration
+        logger.info('MongoDB URI:', config.mongodb.uri ? 'Set' : 'Not set');
+        logger.info('NODE_ENV:', process.env.NODE_ENV || 'Not set');
+
+        // Test connection
         await database.connect();
         logger.success('✅ Database connected successfully');
 
-        // Check if we have any tenders
-        const totalTenders = await Tender.countDocuments();
-        logger.info(`📊 Total tenders in database: ${totalTenders}`);
+        // Test health check
+        const health = await database.healthCheck();
+        logger.info('Database health:', health);
 
-        if (totalTenders > 0) {
-            // Get a sample tender
-            const sampleTender = await Tender.findOne().lean();
-            logger.success('✅ Sample tender found:');
-            logger.info(`Title: ${sampleTender.title}`);
-            logger.info(`Published Date: ${sampleTender.publishedDate}`);
-            logger.info(`Organization: ${sampleTender.organisationName}`);
-        } else {
-            logger.warn('⚠️ No tenders found in database');
-            logger.info('This could mean:');
-            logger.info('1. The scraper hasn\'t run yet');
-            logger.info('2. The scraping failed');
-            logger.info('3. The database is empty');
-        }
-
-        // Check database stats
-        const stats = await Tender.aggregate([
-            { $group: { _id: null, count: { $sum: 1 } } }
-        ]);
-
-        logger.info('📈 Database statistics:');
-        logger.info(`Total documents: ${stats[0]?.count || 0}`);
-
-        // Check recent tenders
-        const recentTenders = await Tender.find()
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .lean();
-
-        logger.info('📅 Recent tenders:');
-        recentTenders.forEach((tender, index) => {
-            logger.info(`${index + 1}. ${tender.title} (${tender.publishedDate})`);
-        });
+        // Test disconnection
+        await database.disconnect();
+        logger.success('✅ Database disconnected successfully');
 
     } catch (error) {
-        logger.error('❌ Database test failed:', error.message);
+        logger.error('❌ Database connection failed:', error.message);
+        logger.error('Full error:', error);
+
+        // Provide troubleshooting tips
+        logger.info('🔧 Troubleshooting tips:');
+        logger.info('1. Check if MONGODB_URI environment variable is set');
+        logger.info('2. Verify the MongoDB connection string is correct');
+        logger.info('3. Ensure MongoDB service is running');
+        logger.info('4. Check network connectivity to MongoDB');
+
         process.exit(1);
-    } finally {
-        await database.disconnect();
-        logger.info('🔌 Database disconnected');
     }
 }
 

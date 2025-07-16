@@ -6,9 +6,14 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
     try {
-        // Connect to database
-        await database.connect();
-        logger.success('Database connected');
+        // Try to connect to database, but don't fail if it doesn't work
+        try {
+            await database.connect();
+            logger.success('Database connected');
+        } catch (dbError) {
+            logger.warn('Database connection failed, but continuing with API server');
+            logger.warn('Database error:', dbError.message);
+        }
 
         // Start server
         app.listen(PORT, () => {
@@ -26,13 +31,21 @@ async function startServer() {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
     logger.info('Shutting down server...');
-    await database.disconnect();
+    try {
+        await database.disconnect();
+    } catch (error) {
+        logger.warn('Error disconnecting from database:', error.message);
+    }
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     logger.info('Shutting down server...');
-    await database.disconnect();
+    try {
+        await database.disconnect();
+    } catch (error) {
+        logger.warn('Error disconnecting from database:', error.message);
+    }
     process.exit(0);
 });
 
