@@ -1,7 +1,9 @@
 const Scraper = require('./services/scraper');
 const database = require('./utils/database');
 const logger = require('./utils/logger');
-const server = require('./server');
+const app = require('./api');
+
+const PORT = process.env.PORT || 3000;
 
 async function start() {
     try {
@@ -9,32 +11,51 @@ async function start() {
 
         // Connect to database
         await database.connect();
+        logger.success('Database connected');
 
-        // Start scraping
+        // Start scraping in background (don't wait for it to complete)
         const scraper = new Scraper();
-        const result = await scraper.scrape();
+        scraper.scrape().then(result => {
+            logger.success('🎉 Scraping completed!', {
+                saved: result.saved,
+                duplicates: result.duplicates,
+                errors: result.errors
+            });
+        }).catch(error => {
+            logger.error('Scraping failed', error);
+        });
 
-        // Log results
-        logger.success('🎉 Scraping completed!', {
-            saved: result.saved,
-            duplicates: result.duplicates,
-            errors: result.errors
+        // Start the API server
+        app.listen(PORT, () => {
+            logger.success(`🚀 API Server running on port ${PORT}`);
+            logger.info(`Health check: http://localhost:${PORT}/health`);
+            logger.info(`API Documentation: http://localhost:${PORT}/api/tenders`);
         });
 
     } catch (error) {
-        logger.error('Scraping failed', error);
-        // Don't exit on error for Render - let the server keep running
+        logger.error('Failed to start server:', error);
+        process.exit(1);
     }
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
-    logger.info('Shutting down...');
+process.on('SIGINT', async () => {
+    logger.info('Shutting down server...');
+    try {
+        await database.disconnect();
+    } catch (error) {
+        logger.warn('Error disconnecting from database:', error.message);
+    }
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-    logger.info('Shutting down...');
+process.on('SIGTERM', async () => {
+    logger.info('Shutting down server...');
+    try {
+        await database.disconnect();
+    } catch (error) {
+        logger.warn('Error disconnecting from database:', error.message);
+    }
     process.exit(0);
 });
 

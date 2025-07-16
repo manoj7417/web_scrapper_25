@@ -58,11 +58,11 @@ class Scraper {
             if (process.env.NODE_ENV === 'production') {
                 const fs = require('fs');
                 const { execSync } = require('child_process');
-                
+
                 // Log environment for debugging
                 logger.info('Production environment detected');
                 logger.info(`PUPPETEER_EXECUTABLE_PATH: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
-                
+
                 // Try to install Chrome if not present
                 try {
                     logger.info('Attempting to install Chrome via Puppeteer...');
@@ -71,7 +71,7 @@ class Scraper {
                 } catch (error) {
                     logger.warn('Failed to install Chrome via Puppeteer:', error.message);
                 }
-                
+
                 const possiblePaths = [
                     process.env.PUPPETEER_EXECUTABLE_PATH,
                     '/usr/bin/google-chrome-stable',
@@ -112,19 +112,32 @@ class Scraper {
                         logger.warn('❌ Error getting Puppeteer Chrome:', error.message);
                     }
                 }
-                
-                // If still no Chrome, try to install system Chrome
+
+                // If still no Chrome, try to install system Chrome (but don't fail if it doesn't work)
                 if (!launchOptions.executablePath) {
                     try {
                         logger.info('Attempting to install system Chrome...');
-                        execSync('apt-get update -qq', { stdio: 'inherit' });
-                        execSync('apt-get install -y -qq wget gnupg ca-certificates', { stdio: 'inherit' });
-                        execSync('wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -', { stdio: 'inherit' });
-                        execSync('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list', { stdio: 'inherit' });
-                        execSync('apt-get update -qq', { stdio: 'inherit' });
-                        execSync('apt-get install -y -qq google-chrome-stable', { stdio: 'inherit' });
-                        logger.success('System Chrome installed');
-                        
+                        // Try with sudo first
+                        try {
+                            execSync('sudo apt-get update -qq', { stdio: 'inherit' });
+                            execSync('sudo apt-get install -y -qq wget gnupg ca-certificates', { stdio: 'inherit' });
+                            execSync('wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -', { stdio: 'inherit' });
+                            execSync('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list', { stdio: 'inherit' });
+                            execSync('sudo apt-get update -qq', { stdio: 'inherit' });
+                            execSync('sudo apt-get install -y -qq google-chrome-stable', { stdio: 'inherit' });
+                            logger.success('System Chrome installed with sudo');
+                        } catch (sudoError) {
+                            logger.warn('Sudo failed, trying without sudo...');
+                            // Try without sudo
+                            execSync('apt-get update -qq', { stdio: 'inherit' });
+                            execSync('apt-get install -y -qq wget gnupg ca-certificates', { stdio: 'inherit' });
+                            execSync('wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -', { stdio: 'inherit' });
+                            execSync('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list', { stdio: 'inherit' });
+                            execSync('apt-get update -qq', { stdio: 'inherit' });
+                            execSync('apt-get install -y -qq google-chrome-stable', { stdio: 'inherit' });
+                            logger.success('System Chrome installed without sudo');
+                        }
+
                         // Check if Chrome is now available
                         if (fs.existsSync('/usr/bin/google-chrome-stable')) {
                             launchOptions.executablePath = '/usr/bin/google-chrome-stable';
@@ -132,16 +145,17 @@ class Scraper {
                         }
                     } catch (error) {
                         logger.warn('Failed to install system Chrome:', error.message);
+                        logger.info('Will try to use Puppeteer bundled Chrome instead');
                     }
                 }
-                
+
                 // Final fallback: try to force Puppeteer to use its bundled Chrome
                 if (!launchOptions.executablePath) {
                     try {
                         logger.info('Attempting to force Puppeteer bundled Chrome...');
                         // Clear any cached executable path
                         delete process.env.PUPPETEER_EXECUTABLE_PATH;
-                        
+
                         // Try to get Puppeteer's bundled Chrome
                         const puppeteerPath = require('puppeteer').executablePath();
                         if (puppeteerPath && fs.existsSync(puppeteerPath)) {
