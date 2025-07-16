@@ -56,6 +56,22 @@ class Scraper {
 
             // For Render deployment, try to find Chrome in common locations
             if (process.env.NODE_ENV === 'production') {
+                const fs = require('fs');
+                const { execSync } = require('child_process');
+                
+                // Log environment for debugging
+                logger.info('Production environment detected');
+                logger.info(`PUPPETEER_EXECUTABLE_PATH: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+                
+                // Try to install Chrome if not present
+                try {
+                    logger.info('Attempting to install Chrome via Puppeteer...');
+                    execSync('npx puppeteer browsers install chrome', { stdio: 'inherit' });
+                    logger.success('Chrome installed via Puppeteer');
+                } catch (error) {
+                    logger.warn('Failed to install Chrome via Puppeteer:', error.message);
+                }
+                
                 const possiblePaths = [
                     process.env.PUPPETEER_EXECUTABLE_PATH,
                     '/usr/bin/google-chrome-stable',
@@ -67,16 +83,18 @@ class Scraper {
                 ].filter(Boolean);
 
                 // Try to find Chrome executable
+                logger.info('Checking Chrome paths:');
                 for (const path of possiblePaths) {
                     try {
-                        const fs = require('fs');
                         if (fs.existsSync(path)) {
                             launchOptions.executablePath = path;
-                            logger.info(`Using Chrome executable: ${path}`);
+                            logger.success(`✅ Chrome found at: ${path}`);
                             break;
+                        } else {
+                            logger.warn(`❌ Chrome not found at: ${path}`);
                         }
                     } catch (error) {
-                        // Continue to next path
+                        logger.warn(`❌ Error checking: ${path} - ${error.message}`);
                     }
                 }
 
@@ -86,10 +104,54 @@ class Scraper {
                         const puppeteerPath = require('puppeteer').executablePath();
                         if (puppeteerPath) {
                             launchOptions.executablePath = puppeteerPath;
-                            logger.info(`Using Puppeteer bundled Chrome: ${puppeteerPath}`);
+                            logger.success(`✅ Using Puppeteer bundled Chrome: ${puppeteerPath}`);
+                        } else {
+                            logger.warn('❌ Puppeteer bundled Chrome not available');
                         }
                     } catch (error) {
-                        logger.warn('No Chrome executable found, trying without executable path');
+                        logger.warn('❌ Error getting Puppeteer Chrome:', error.message);
+                    }
+                }
+                
+                // If still no Chrome, try to install system Chrome
+                if (!launchOptions.executablePath) {
+                    try {
+                        logger.info('Attempting to install system Chrome...');
+                        execSync('apt-get update -qq', { stdio: 'inherit' });
+                        execSync('apt-get install -y -qq wget gnupg ca-certificates', { stdio: 'inherit' });
+                        execSync('wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -', { stdio: 'inherit' });
+                        execSync('echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list', { stdio: 'inherit' });
+                        execSync('apt-get update -qq', { stdio: 'inherit' });
+                        execSync('apt-get install -y -qq google-chrome-stable', { stdio: 'inherit' });
+                        logger.success('System Chrome installed');
+                        
+                        // Check if Chrome is now available
+                        if (fs.existsSync('/usr/bin/google-chrome-stable')) {
+                            launchOptions.executablePath = '/usr/bin/google-chrome-stable';
+                            logger.success('✅ Chrome now available at /usr/bin/google-chrome-stable');
+                        }
+                    } catch (error) {
+                        logger.warn('Failed to install system Chrome:', error.message);
+                    }
+                }
+                
+                // Final fallback: try to force Puppeteer to use its bundled Chrome
+                if (!launchOptions.executablePath) {
+                    try {
+                        logger.info('Attempting to force Puppeteer bundled Chrome...');
+                        // Clear any cached executable path
+                        delete process.env.PUPPETEER_EXECUTABLE_PATH;
+                        
+                        // Try to get Puppeteer's bundled Chrome
+                        const puppeteerPath = require('puppeteer').executablePath();
+                        if (puppeteerPath && fs.existsSync(puppeteerPath)) {
+                            launchOptions.executablePath = puppeteerPath;
+                            logger.success(`✅ Using Puppeteer bundled Chrome: ${puppeteerPath}`);
+                        } else {
+                            logger.warn('Puppeteer bundled Chrome not available, will try without executable path');
+                        }
+                    } catch (error) {
+                        logger.warn('Error getting Puppeteer Chrome:', error.message);
                     }
                 }
 

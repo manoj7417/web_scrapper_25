@@ -33,8 +33,15 @@ async function buildCheck() {
             }
         }
 
-        // Check Chrome paths
-        const possiblePaths = [
+        // Check Chrome paths - handle both Windows and Linux
+        const isWindows = process.platform === 'win32';
+        const possiblePaths = isWindows ? [
+            // Windows paths
+            process.env.PUPPETEER_EXECUTABLE_PATH,
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+        ] : [
+            // Linux paths
             process.env.PUPPETEER_EXECUTABLE_PATH,
             '/usr/bin/google-chrome-stable',
             '/usr/bin/google-chrome',
@@ -67,9 +74,11 @@ async function buildCheck() {
             if (puppeteerPath) {
                 logger.success(`✅ Puppeteer bundled Chrome: ${puppeteerPath}`);
                 chromeFound = true;
+            } else {
+                logger.warn('❌ Puppeteer bundled Chrome not available');
             }
         } catch (error) {
-            logger.warn('❌ Puppeteer bundled Chrome not available');
+            logger.warn('❌ Error getting Puppeteer Chrome:', error.message);
         }
 
         if (!chromeFound) {
