@@ -14,6 +14,8 @@
     "build-check": "node build-check.js",
     "test-chrome": "node test-chrome.js",
     "debug-chrome": "node debug-chrome.js",
+    "test-database": "node test-database.js",
+    "manual-scrape": "node manual-scrape.js",
     "test-deployment": "node test-deployment.js",
     "postinstall": "node -e \"try { require('puppeteer').executablePath } catch(e) { console.log('Puppeteer browser not found, will use system Chrome') }\""
   },
