@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const Scraper = require('./services/scraper');
+const UKJobsScraper = require('./services/ukJobsScraper');
 const database = require('./utils/database');
 const logger = require('./utils/logger');
 const Tender = require('./models/Tender');
+const UKJob = require('./models/UKJob');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -217,6 +219,237 @@ app.get('/api/search', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to search tenders',
+            message: error.message
+        });
+    }
+});
+
+// UK Jobs API Routes
+
+// Get all UK jobs with pagination and filtering
+app.get('/api/uk-jobs', async (req, res) => {
+    try {
+        const {
+            page = 1,
+            limit = 20,
+            search,
+            company,
+            location,
+            jobType,
+            workType,
+            remoteType,
+            sortBy = 'postedDate',
+            sortOrder = 'desc'
+        } = req.query;
+
+        // Build query
+        let query = {};
+
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { company: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        if (company) {
+            query.company = { $regex: company, $options: 'i' };
+        }
+
+        if (location) {
+            query.location = { $regex: location, $options: 'i' };
+        }
+
+        if (jobType) {
+            query.jobType = { $regex: jobType, $options: 'i' };
+        }
+
+        if (workType) {
+            query.workType = { $regex: workType, $options: 'i' };
+        }
+
+        if (remoteType) {
+            query.remoteType = { $regex: remoteType, $options: 'i' };
+        }
+
+        // Build sort object
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        // Execute query with pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const jobs = await UKJob.find(query)
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await UKJob.countDocuments(query);
+        const totalPages = Math.ceil(total / parseInt(limit));
+
+        res.json({
+            success: true,
+            data: jobs,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                totalPages
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error fetching UK jobs:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch UK jobs',
+            message: error.message
+        });
+    }
+});
+
+// Get UK job by ID
+app.get('/api/uk-jobs/:id', async (req, res) => {
+    try {
+        const job = await UKJob.findById(req.params.id).lean();
+
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                error: 'UK job not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: job
+        });
+
+    } catch (error) {
+        logger.error('Error fetching UK job:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch UK job',
+            message: error.message
+        });
+    }
+});
+
+// UK Jobs statistics
+app.get('/api/uk-jobs-stats', async (req, res) => {
+    try {
+        const totalJobs = await UKJob.countDocuments();
+        const todayJobs = await UKJob.countDocuments({
+            postedDate: {
+                $gte: new Date().toISOString().split('T')[0]
+            }
+        });
+
+        const companies = await UKJob.aggregate([
+            { $group: { _id: '$company', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        const jobTypes = await UKJob.aggregate([
+            { $group: { _id: '$jobType', count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ]);
+
+        const locations = await UKJob.aggregate([
+            { $group: { _id: '$location', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                totalJobs,
+                todayJobs,
+                topCompanies: companies,
+                jobTypeDistribution: jobTypes,
+                topLocations: locations
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error fetching UK jobs stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch UK jobs statistics',
+            message: error.message
+        });
+    }
+});
+
+// Manual UK jobs scraping endpoint
+app.post('/api/scrape-uk-jobs', async (req, res) => {
+    try {
+        const { maxPages = 10, location = '86383' } = req.body;
+
+        logger.info('Manual UK jobs scraping requested via API', { maxPages, location });
+
+        const scraper = new UKJobsScraper();
+        const result = await scraper.scrape(maxPages, location);
+
+        res.json({
+            success: true,
+            message: 'UK Jobs scraping completed',
+            data: {
+                saved: result.saved,
+                duplicates: result.duplicates,
+                errors: result.errors,
+                maxPages,
+                location
+            }
+        });
+
+    } catch (error) {
+        logger.error('Error during UK jobs manual scraping:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to scrape UK jobs',
+            message: error.message
+        });
+    }
+});
+
+// Search UK jobs
+app.get('/api/search-uk-jobs', async (req, res) => {
+    try {
+        const { q, limit = 10 } = req.query;
+
+        if (!q) {
+            return res.status(400).json({
+                success: false,
+                error: 'Search query is required'
+            });
+        }
+
+        const jobs = await UKJob.find({
+            $or: [
+                { title: { $regex: q, $options: 'i' } },
+                { company: { $regex: q, $options: 'i' } },
+                { description: { $regex: q, $options: 'i' } }
+            ]
+        })
+            .sort({ postedDate: -1 })
+            .limit(parseInt(limit))
+            .lean();
+
+        res.json({
+            success: true,
+            data: jobs
+        });
+
+    } catch (error) {
+        logger.error('Error searching UK jobs:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to search UK jobs',
             message: error.message
         });
     }
