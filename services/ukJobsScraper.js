@@ -123,21 +123,57 @@ class UKJobsScraper {
 
     async navigateToPage(pageNumber = 1, location = '86383') {
         try {
-            const url = pageNumber === 1
-                ? `${this.baseUrl}?q=&loc=${location}`
-                : `${this.baseUrl}?q=&loc=${location}&page=${pageNumber}`;
+            let url;
 
-            logger.info(`Navigating to page ${pageNumber}: ${url}`);
+            if (pageNumber === 1) {
+                url = `${this.baseUrl}?q=&loc=${location}`;
+                logger.info(`Navigating to page ${pageNumber}: ${url}`);
 
-            await this.page.goto(url, {
-                waitUntil: 'networkidle2',
-                timeout: 30000
-            });
+                await this.page.goto(url, {
+                    waitUntil: 'networkidle2',
+                    timeout: 30000
+                });
 
-            // Wait for job listings to load
-            await this.page.waitForSelector('h3', {
-                timeout: 30000
-            });
+                // Wait for job listings to load
+                await this.page.waitForSelector('h3', {
+                    timeout: 30000
+                });
+            } else {
+                // For subsequent pages, try to click the "next" button
+                logger.info(`Attempting to navigate to page ${pageNumber} via pagination`);
+
+                // Wait for the page to be ready
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Try to find and click the next button
+                try {
+                    const nextButton = await this.page.$('a[rel="next"], a:contains("next"), .pagination a:last-child, .next');
+                    if (nextButton) {
+                        await nextButton.click();
+                        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for page to load
+                    } else {
+                        // If no next button, try URL-based pagination
+                        url = `${this.baseUrl}?q=&loc=${location}&page=${pageNumber}`;
+                        logger.info(`No next button found, trying URL: ${url}`);
+                        await this.page.goto(url, {
+                            waitUntil: 'networkidle2',
+                            timeout: 30000
+                        });
+                    }
+                } catch (error) {
+                    logger.warn(`Could not find next button, trying URL-based pagination`);
+                    url = `${this.baseUrl}?q=&loc=${location}&page=${pageNumber}`;
+                    await this.page.goto(url, {
+                        waitUntil: 'networkidle2',
+                        timeout: 30000
+                    });
+                }
+
+                // Wait for job listings to load
+                await this.page.waitForSelector('h3', {
+                    timeout: 30000
+                });
+            }
 
             logger.success(`Page ${pageNumber} loaded`);
         } catch (error) {
