@@ -14,11 +14,13 @@ Simple Node.js scraper for Indian Government eProcurement portal using Puppeteer
 ## Setup
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Set up MongoDB**
+
    - Install MongoDB locally or use MongoDB Atlas
    - Create database named `eprocurement`
 
@@ -30,16 +32,19 @@ Simple Node.js scraper for Indian Government eProcurement portal using Puppeteer
 ## Usage
 
 ### Run scraper (single page)
+
 ```bash
 npm start
 ```
 
 ### Run paginated scraper (multiple pages)
+
 ```bash
 npm run pages
 ```
 
 ### Scrape specific page range
+
 ```bash
 # Scrape pages 1-5 (default)
 npm run pages
@@ -52,16 +57,32 @@ node scrape-pages.js 10 5
 ```
 
 ### Development mode
+
 ```bash
 npm run dev
 ```
 
+### Automatic scheduling
+
+The app can auto-scrape on a cron schedule using an in-process scheduler. Configure via environment variables:
+
+```
+SCRAPE_SCHEDULER_ENABLED=true   # enable/disable scheduler
+SCRAPE_CRON=0 */6 * * *         # cron expression (every 6 hours)
+SCRAPE_CRON_TZ=UTC              # timezone
+SCRAPE_ON_BOOT=true             # run a scrape once at startup
+```
+
+By default, it runs every 6 hours and once at boot. Overlapping runs are prevented.
+
 ### Test database connection
+
 ```bash
 npm test
 ```
 
 ### Debug issues
+
 ```bash
 npm run debug
 ```
@@ -95,6 +116,7 @@ npm run debug
 ## Configuration
 
 Edit `config.js` to modify:
+
 - Target URL
 - Timeout settings
 - Browser options
@@ -120,6 +142,7 @@ Edit `config.js` to modify:
 ## Logging
 
 The scraper provides detailed logs:
+
 ```
 [2024-01-15T10:30:00.000Z] INFO: 🚀 Starting eProcurement Scraper...
 [2024-01-15T10:30:01.000Z] SUCCESS: Database connected
@@ -142,14 +165,17 @@ The scraper provides detailed logs:
 ### Common Issues
 
 1. **MongoDB Connection Failed**
+
    - Ensure MongoDB is running
    - Check connection string in `.env`
 
 2. **Puppeteer Launch Failed**
+
    - Install system dependencies
    - Check browser installation
 
 3. **No Data Extracted**
+
    - Verify target URL is accessible
    - Check website structure changes
 
@@ -160,4 +186,4 @@ The scraper provides detailed logs:
 
 ## License
 
-MIT License 
+MIT License

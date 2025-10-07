@@ -6,6 +6,7 @@ const database = require('./utils/database');
 const logger = require('./utils/logger');
 const Tender = require('./models/Tender');
 const UKJob = require('./models/UKJob');
+const { startScheduler } = require('./services/scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,7 +37,7 @@ app.get('/api/tenders', async (req, res) => {
             organisation,
             startDate,
             endDate,
-            sortBy = 'publishedDate',
+            sortBy = 'publishedAt',
             sortOrder = 'desc'
         } = req.query;
 
@@ -55,9 +56,15 @@ app.get('/api/tenders', async (req, res) => {
         }
 
         if (startDate || endDate) {
-            query.publishedDate = {};
-            if (startDate) query.publishedDate.$gte = startDate;
-            if (endDate) query.publishedDate.$lte = endDate;
+            // Prefer Date range on normalized publishedAt
+            const range = {};
+            if (startDate) range.$gte = new Date(startDate);
+            if (endDate) {
+                const d = new Date(endDate);
+                // include full end day by moving to end-of-day UTC
+                range.$lte = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+            }
+            if (Object.keys(range).length) query.publishedAt = range;
         }
 
         // Build sort object
@@ -128,11 +135,11 @@ app.get('/api/tenders/:id', async (req, res) => {
 app.get('/api/stats', async (req, res) => {
     try {
         const totalTenders = await Tender.countDocuments();
-        const todayTenders = await Tender.countDocuments({
-            publishedDate: {
-                $gte: new Date().toISOString().split('T')[0]
-            }
-        });
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        const todayTenders = await Tender.countDocuments({ publishedAt: { $gte: startOfDay, $lte: endOfDay } });
 
         const organisations = await Tender.aggregate([
             { $group: { _id: '$organisationName', count: { $sum: 1 } } },
@@ -205,7 +212,7 @@ app.get('/api/search', async (req, res) => {
                 { organisationName: { $regex: q, $options: 'i' } }
             ]
         })
-            .sort({ publishedDate: -1 })
+            .sort({ publishedAt: -1 })
             .limit(parseInt(limit))
             .lean();
 
@@ -482,17 +489,20 @@ async function startApplication() {
         await database.connect();
         logger.success('Database connected');
 
-        // Start scraping in background (don't wait for it to complete)
-        const scraper = new Scraper();
-        scraper.scrape().then(result => {
-            logger.success('🎉 Scraping completed!', {
-                saved: result.saved,
-                duplicates: result.duplicates,
-                errors: result.errors
+        // Optional immediate scrape on boot
+        const runOnBoot = (process.env.SCRAPE_ON_BOOT || 'true').toLowerCase() === 'true';
+        if (runOnBoot) {
+            const scraper = new Scraper();
+            scraper.scrape().then(result => {
+                logger.success('🎉 Boot-time scraping completed!', {
+                    saved: result.saved,
+                    duplicates: result.duplicates,
+                    errors: result.errors
+                });
+            }).catch(error => {
+                logger.error('Boot-time scraping failed', error);
             });
-        }).catch(error => {
-            logger.error('Scraping failed', error);
-        });
+        }
 
         // Start the API server
         app.listen(PORT, () => {
@@ -500,6 +510,9 @@ async function startApplication() {
             logger.info(`Health check: http://localhost:${PORT}/health`);
             logger.info(`API Documentation: http://localhost:${PORT}/api/tenders`);
         });
+
+        // Start in-process scheduler (configurable via env)
+        startScheduler();
 
     } catch (error) {
         logger.error('Failed to start server:', error);

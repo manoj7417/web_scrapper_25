@@ -15,4 +15,21 @@ services:
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
         value: false
     healthCheckPath: /health
-    autoDeploy: true 
+    autoDeploy: true
+
+  # Optional: Dedicated cron service to trigger scraping on a schedule without
+  # relying on the web service's in-process scheduler. If you enable this,
+  # you can set SCRAPE_SCHEDULER_ENABLED=false in the web service.
+  - type: cron
+    name: eprocurement-scraper-cron
+    env: node
+    schedule: "0 3 * * *" # daily at 03:00 UTC
+    buildCommand: |
+      npm install
+      npx puppeteer browsers install chrome
+    startCommand: node manual-scrape.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false

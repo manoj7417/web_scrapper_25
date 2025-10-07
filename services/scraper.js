@@ -194,9 +194,74 @@ class Scraper {
                 return null;
             }
 
+            const publishedDateText = await getText(cells[1]);
+
+            // Try to normalize published date/time into a Date object (UTC)
+            const parsePublishedAt = (text) => {
+                if (!text) return null;
+                const t = text.trim();
+                // Try native Date first
+                const native = new Date(t);
+                if (!isNaN(native.getTime())) return native;
+
+                // dd/MM/yyyy HH:mm (24h)
+                let m = t.match(/^([0-3]?\d)[\/\-]([0-1]?\d)[\/\-](\d{4})\s+([0-2]?\d):([0-5]\d)$/);
+                if (m) {
+                    const d = parseInt(m[1], 10);
+                    const mo = parseInt(m[2], 10) - 1;
+                    const y = parseInt(m[3], 10);
+                    const hh = parseInt(m[4], 10);
+                    const mm = parseInt(m[5], 10);
+                    return new Date(Date.UTC(y, mo, d, hh, mm));
+                }
+
+                // dd/MM/yyyy or d/M/yyyy (no time)
+                m = t.match(/^([0-3]?\d)[\/\-]([0-1]?\d)[\/\-](\d{4})$/);
+                if (m) {
+                    const d = parseInt(m[1], 10);
+                    const mo = parseInt(m[2], 10) - 1;
+                    const y = parseInt(m[3], 10);
+                    return new Date(Date.UTC(y, mo, d));
+                }
+
+                // dd-MMM-yyyy hh:mm AM/PM (e.g., 15-Jul-2025 05:12 PM)
+                m = t.match(/^([0-3]?\d)[\- ]([A-Za-z]{3})[\- ](\d{4})\s+([0-1]?\d):([0-5]\d)\s*(AM|PM)$/i);
+                if (m) {
+                    const d = parseInt(m[1], 10);
+                    const monStr = m[2].toLowerCase();
+                    const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+                    const mo = months[monStr];
+                    const y = parseInt(m[3], 10);
+                    let hh = parseInt(m[4], 10);
+                    const mm = parseInt(m[5], 10);
+                    const ampm = m[6].toUpperCase();
+                    if (ampm === 'PM' && hh !== 12) hh += 12;
+                    if (ampm === 'AM' && hh === 12) hh = 0;
+                    if (mo !== undefined) return new Date(Date.UTC(y, mo, d, hh, mm));
+                }
+
+                // dd-MMM-yyyy (e.g., 05-Aug-2025)
+                m = t.match(/^([0-3]?\d)[\- ]([A-Za-z]{3})[\- ](\d{4})$/);
+                if (m) {
+                    const d = parseInt(m[1], 10);
+                    const monStr = m[2].toLowerCase();
+                    const months = {
+                        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+                    };
+                    const mo = months[monStr];
+                    const y = parseInt(m[3], 10);
+                    if (mo !== undefined) return new Date(Date.UTC(y, mo, d));
+                }
+
+                return null;
+            };
+
+            const publishedAt = parsePublishedAt(publishedDateText);
+
             return {
                 serialNumber: await getText(cells[0]) || `Page${pageNumber}-Row${index}`,
-                publishedDate: await getText(cells[1]),
+                publishedDate: publishedDateText,
+                publishedAt,
                 bidSubmissionClosingDate: await getText(cells[2]),
                 tenderOpeningDate: await getText(cells[3]),
                 title,

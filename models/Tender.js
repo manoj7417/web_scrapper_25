@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const tenderSchema = new mongoose.Schema({
     serialNumber: String,
     publishedDate: String,
+    publishedAt: { type: Date },
     bidSubmissionClosingDate: String,
     tenderOpeningDate: String,
     title: { type: String, required: true },
